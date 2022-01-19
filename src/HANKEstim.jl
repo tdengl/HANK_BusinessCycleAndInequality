@@ -125,6 +125,7 @@ function linearize_full_model(sr::SteadyResults, m_par::ModelParameters)
     # @timev State2Control, LOMstate, SolutionError, nk, A, B = SGU_estim(sr.XSSaggr, copy(A), copy(B), sr.m_par, sr.n_par, sr.indexes, sr.indexes_aggr, sr.distrSS; estim = true)
     #BLAS.set_num_threads(1)
     #BLAS.set_num_threads(Threads.nthreads())
+    
     return LinearResults(State2Control, LOMstate, A, B, SolutionError, nk)
 end
 

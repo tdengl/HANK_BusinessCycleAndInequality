@@ -1,2 +1,7 @@
 
 .DS_Store
+*.log
+*.aux
+*.gz
+*.tex
+src/7_Saves/HANKX_mode.jld2

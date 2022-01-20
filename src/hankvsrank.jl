@@ -1,22 +1,24 @@
 # Run main files here, make sure pwd is set to folder containing mainscript and HANKEstim
 include("2_NumericalBasics/PreprocessInputs.jl")
-steadyplots = 0
-counterfactuals = 1
+
+push!(LOAD_PATH, pwd())
+
 using HANKEstim, LinearAlgebra, Plots
 # initialize model parameters
-m_par = ModelParameters(ξ = 1.0, RB = 1.0025, hs = 0.5) # log utility for now
+m_par = ModelParameters() # log utility for now
 # Could load and add estimated parameters here
-HANKEstim.@load "7_Saves/HANKXplus_postmean.jld2" par_final
-m_par = HANKEstim.Flatten.reconstruct(m_par, par_final[1:length(par_final) - length(HANKEstim.e_set.meas_error_input)])
+HANKEstim.@load "7_Saves/parameter_example.jld2" par_final
+m_par = HANKEstim.Flatten.reconstruct(m_par, par_final[1:length(par_final)-length(HANKEstim.e_set.meas_error_input)])
 
 sr = compute_steadystate(m_par)
 lr = linearize_full_model(sr, m_par)
 
 # Now Rank
-push!(LOAD_PATH, pwd())
-using HANKrank, LinearAlgebra, Plots
-include("9_Rank_simple/PreprocessInputs_rank.jl")
+include("8_Rank/PreprocessInputs_rank.jl")
 
+push!(LOAD_PATH, pwd())
+
+using HANKrank, LinearAlgebra, Plots
 
 # m_par_rank =  HANKrank.ModelParameters(ξ = 1.0, hs = 0.5, δ_s = 1.92,
 # ϕ = 1.267, κ = 0.083, κw = 0.085, ρ_R = 0.818, σ_Rshock = 0.0025, 
@@ -42,8 +44,14 @@ include("9_Rank_simple/PreprocessInputs_rank.jl")
 # θ_Y = 0.176, γ_B = 0.4,  γ_π = -1.05, γ_Y = -0.852)
 # m_par_rank = HANKrank.ModelParameters(ξ = 1.0, hs = 0.5, δ_s = 1.92, ϕ = 1.267, κ = 0.083, κw = 0.085, ρ_R = 0.818, σ_Rshock = 0.0025, θ_π = 2.1, 
 # θ_Y = 0.176, γ_B = 0.4,  γ_π = -1.05, γ_Y = -0.852, ωF = 0.1)
-m_par_rank = HANKrank.ModelParameters(ξ = 1.0, hs = 0.5, δ_s = 1.92, ϕ = 1.267, κ = 0.083, κw = 0.085, ρ_R = 0.818, σ_Rshock = 0.0025, θ_π = 2.1, 
-θ_Y = 0.176, γ_B = 0.4,  γ_π = -1.05, γ_Y = -0.852, ωF = 0.1, ωU = 0.1)
+# m_par_rank = HANKrank.ModelParameters(ξ = 1.0, hs = 0.5, δ_s = 1.92, ϕ = 1.267, κ = 0.083, κw = 0.085, ρ_R = 0.818, σ_Rshock = 0.0025, θ_π = 2.1, 
+# θ_Y = 0.176, γ_B = 0.4,  γ_π = -1.05, γ_Y = -0.852, ωF = 0.1, ωU = 0.1)
+
+m_par_rank = HANKrank.ModelParameters()
+
+HANKrank.@load "7_Saves/parameter_example.jld2" par_final
+m_par = HANKrank.Flatten.reconstruct(m_par_rank, par_final[1:length(par_final)-length(HANKrank.e_set.meas_error_input)])
+
 
 
 m_par_rank = HANKrank.@set m_par_rank.RB = 1.0./m_par_rank.β # Rank interest rate on bonds is simply 1/beta
@@ -69,7 +77,7 @@ end
 # Monetary policy shock
 irf_horizon         = 16
 x0                  = zeros(size(lr_rank.LOMstate,1), 1)
-x0[sr_rank.indexes.Rshock]= 100 * m_par_rank.σ_Rshock
+x0[sr_rank.indexes.Rshock]= 100 * 0.0025
 MX                  = [I; lr_rank.State2Control]
 x                   = x0 * ones(1, irf_horizon + 1)
 IRF_state_sparse_rank    = zeros(size(MX)[1], irf_horizon)

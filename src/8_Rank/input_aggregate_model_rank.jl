@@ -38,8 +38,8 @@ YREACTION = Y ./ exp(Xss[indexes.YSS])                                  # Policy
 
 # tax progressivity variabels used to calculate e.g. total taxes
 #tax_prog_scale          = (m_par.γ + m_par.τ_prog) / ((m_par.γ + τprog))  # scaling of labor disutility including tax progressivity
-inc                      = τlev .* (mcw .*w .* N).^(1.0 - τprog)           # net labor income
-incp                     = τlev .* profits.^(1.0 - τprog)                  # profit income net of taxes
+inc                      = τlev .* (mcw .*w .* N).^(1.0 - m_par.τ_prog)           # net labor income
+incp                     = τlev .* profits.^(1.0 - m_par.τ_prog)                  # profit income net of taxes
 
 incgross                 = mcw .* w .* N                                   # gross labor income
 incgrossp                = profits                                         # gross profit income
@@ -56,7 +56,6 @@ incgrossaux             = incgross
 # Error Term on exogeneous States
 # Shock processes
 F[indexes.Gshock]       = log.(GshockPrime)         - m_par.ρ_Gshock * log.(Gshock)     # primary deficit shock
-F[indexes.Tprogshock]   = log.(TprogshockPrime)     - m_par.ρ_Pshock * log.(Tprogshock) # tax shock
 
 F[indexes.Rshock]       = log.(RshockPrime)         - m_par.ρ_Rshock * log.(Rshock)     # Taylor rule shock
 F[indexes.Sshock]       = log.(SshockPrime)         - m_par.ρ_Sshock * log.(Sshock)     # uncertainty shock
@@ -77,7 +76,6 @@ F[indexes.Tlag]         = log(TlagPrime)    - log(T)
 F[indexes.qlag]         = log(qlagPrime)    - log(q)
 F[indexes.Clag]         = log(ClagPrime)    - log(C)
 F[indexes.av_tax_ratelag] = log(av_tax_ratelagPrime) - log(av_tax_rate)
-F[indexes.τproglag]     = log(τproglagPrime) - log(τprog)
 
 # Growth rates
 F[indexes.Ygrowth]      = log(Ygrowth)      - log(Y/Ylag)
@@ -92,14 +90,6 @@ F[indexes.RB]           = log(RBPrime) - Xss[indexes.RBSS] -
                             ((1 - m_par.ρ_R) * m_par.θ_π) .* log(π) -
                             ((1 - m_par.ρ_R) * m_par.θ_Y) .* log(YREACTION) -
                             m_par.ρ_R * (log.(RB) - Xss[indexes.RBSS])  - log(Rshock)
-
-# Tax rule
-F[indexes.τprog]        = log(τprog) - m_par.ρ_P * log(τproglag)  - 
-                            (1.0 - m_par.ρ_P) *(Xss[indexes.τprogSS]) - 
-                            (1.0 - m_par.ρ_P) * m_par.γ_YP * log(YREACTION) -
-                            (1.0 - m_par.ρ_P) * m_par.γ_BP * (log(B)- Xss[indexes.BSS]) - 
-                            log(Tprogshock)
-
 
 F[indexes.τlev]         = av_tax_rate - (taxrev ./ incgrossaux) # Union profits are taxed at average tax rate, this equation pins down taxrev because av_tax rate is exogenous
 
@@ -153,9 +143,9 @@ F[indexes.LPXA]         = log.(LPXA)                - (log((qPrime + rPrime - 1.
 
 # Aggregate Quantities
 F[indexes.I]            = KPrime .-  K .* (1.0 .- depr)  .- ZI .* I .* (1.0 .- m_par.ϕ ./ 2.0 .* (Igrowth -1.0).^2.0)           # Capital accumulation equation
-F[indexes.N]            = log.(N) - log.(((1.0 - τprog) * τlev * (mcw .* w).^(1.0 - τprog)).^(1.0 / (m_par.γ + τprog)))   # labor supply
+F[indexes.N]            = log.(N) - log.(((1.0 - m_par.τ_prog) * τlev * (mcw .* w).^(1.0 - m_par.τ_prog)).^(1.0 / (m_par.γ + m_par.τ_prog)))   # labor supply
 F[indexes.Y]            = log.(Y) - log.(Z .* N .^(1.0 .- m_par.α) .* Kserv .^m_par.α)                                          # production function
-F[indexes.C]            = log.(Y .- G .- I .- BD*m_par.Rbar .+ (A .- 1.0) .* RB .* B ./ π) .- log(C)                            # Resource constraint
+F[indexes.C]            = log.(Y .- G .- I .+ (A .- 1.0) .* RB .* B ./ π) .- log(C)                            # Resource constraint
 # TD: Does not contain  - (δ_1 * (u - 1.0) + δ_2 / 2.0 * (u - 1.0)^2.0).*K) anymore
 
 # Error Term on prices/aggregate summary vars (logarithmic, controls), here difference to SS value averages

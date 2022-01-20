@@ -42,19 +42,17 @@ function SGU_rank(XSSaggr::Array, m_par::ModelParameters, n_par::NumericalParame
     # end
 
     length_X0   = length(XSSaggr) 
-    # # different function here
-    # #Fsys_rank(X::AbstractArray, XPrime::AbstractArray, Xss::Array{Float64,1}, m_par::ModelParameters,
-    # #n_par::NumericalParameters, indexes::IndexStructAggr)
-    # # n_par::NumericalParameters, indexes::Union{IndexStructAggr,IndexStruct})
-    # # Fsys_agg(X::AbstractArray, XPrime::AbstractArray, Xss::Array{Float64,1},distrSS::AbstractArray, m_par::ModelParameters,
-    # # ::NumericalParameters, indexes::Union{IndexStructAggr,IndexStruct})
-    # # # X0 = zeros(length_X0) .+ ForwardDiff.Dual(0.0,tuple(zeros(5)...))
-    # X0 = zeros(length_X0)
-    # F  = Fsys_agg(X0,X0,XSSaggr, zeros(1,1),m_par,n_par,indexes)
-    # if maximum(abs.(F))/10>n_par.ϵ
-    #     @warn  "F=0 is not at required precision"
-    #     indicators = findall(abs.(F).>n_par.ϵ)
-    # end
+
+
+    length_X0 = n_par.ntotal 
+    X0 = zeros(length_X0) .+ ForwardDiff.Dual(0.0,0.0)
+    F  = Fsys_agg(X0,X0,XSSaggr,zeros(1,1),m_par,n_par,indexes)
+   
+    FR=realpart.(F)
+    println("Number of States and Controls")
+    println(indexes.profits)
+    println("Max error on Fsys:")
+    println(maximum(abs.(FR[:])))
 
 
 

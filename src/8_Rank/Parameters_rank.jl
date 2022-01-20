@@ -70,9 +70,9 @@ julia> priors = collect(metaflatten(m_par, prior))
 	σ_μw::T = 0.0 		| "sigma_muw" 	| L"\sigma_{\mu w}"| InverseGamma(ig_pars(0.001, 0.02^2)...)| true  # Std of cost push shock
 
 	# income risk
-	ρ_s::T = 0.84 		| "rho_sigma" 	| L"\rho_s" 	| Beta(beta_pars(0.7, 0.2^2)...)       		| true  # Persistence of idiosyncratic income risk
-	σ_Sshock::T = 1.0  	| "sigma_Sshock"| L"\sigma_s" 	| Gamma(gamma_pars(0.65, 0.3^2)...) 		| true  # std of idiosyncratic income risk
-	Σ_n::T = 0.0  		| "Sigma_n" 	| L"\Sigma_N" 	| Normal(0.0, 100.0) 						| true  # reaction of risk to employment
+	ρ_s::T = 0.84 		| "rho_sigma" 	| L"\rho_s" 	| Beta(beta_pars(0.7, 0.2^2)...)       		| false  # Persistence of idiosyncratic income risk
+	σ_Sshock::T = 1.0  	| "sigma_Sshock"| L"\sigma_s" 	| Gamma(gamma_pars(0.65, 0.3^2)...) 		| false  # std of idiosyncratic income risk
+	Σ_n::T = 0.0  		| "Sigma_n" 	| L"\Sigma_N" 	| Normal(0.0, 100.0) 						| false  # reaction of risk to employment
 
 	# monetary policy
 	ρ_R::T = 0.9 		| "rho_R" 		| L"\rho_R" 	| Beta(beta_pars(0.5, 0.2^2)...)          	| true  # Pers. in Taylor rule
@@ -91,8 +91,8 @@ julia> priors = collect(metaflatten(m_par, prior))
 	γ_Bτ::T = 1.5 		| "gamma_Btau" 	| L"\gamma_B^\tau"| Normal(0.0, 1.0) 						| true  # reaction of tax level to debt
 	γ_Yτ::T = 3.0 		| "gamma_Ytau" 	| L"\gamma_Y_\tau"| Normal(0.0, 1.0) 						| true  # reaction of tax level to output
 
-	ρ_P::T = 0.5  		| "rho_P" 		| L"\rho_P" 	| Beta(beta_pars(0.5, 0.2^2)...)        	| true  # Pers. in tax progr. rule
-	σ_Tprogshock::T = 0.01|"sigma_Pshock"| L"\sigma_P" 	| InverseGamma(ig_pars(0.001, 0.02^2)...) 	| true  # Std tax progr.
+	ρ_P::T = 0.5  		| "rho_P" 		| L"\rho_P" 	| Beta(beta_pars(0.5, 0.2^2)...)        	| false  # Pers. in tax progr. rule
+	σ_Tprogshock::T = 0.01|"sigma_Pshock"| L"\sigma_P" 	| InverseGamma(ig_pars(0.001, 0.02^2)...) 	| false  # Std tax progr.
 	γ_BP::T = 0.0 		| "gamma_BP" 	| L"\gamma_B^P" | Normal(0.0, 1.0) 							| false # reaction of tax progr. to debt
 	γ_YP::T = 0.0 		| "gamma_YP" 	| L"\gamma_Y^P" | Normal(0.0, 1.0) 							| false # reaction of tax progr. to output
 
@@ -190,21 +190,22 @@ Use package `Parameters` to provide initial values. Input and output file names 
 stored in the fields `mode_start_file`, `data_file`, `save_mode_file` and `save_posterior_file`.
 """
 @with_kw struct EstimationSettings
-	shock_names::Array{Symbol, 1} 			= [:A, :Z, :ZI, :μ, :μw, :Gshock, :Rshock, :Sshock, :Tprogshock]
-	observed_vars_input::Array{Symbol, 1} 	= [:Ygrowth, :Igrowth, :Cgrowth, :N, :wgrowth, :RB,  :π, :TOP10Wshare, :TOP10Ishare, :τprog, :σ]
+	#shock_names::Array{Symbol, 1} 			= [:A, :Z, :ZI, :μ, :μw, :Gshock, :Rshock, :Sshock, :Tprogshock]
+	#observed_vars_input::Array{Symbol, 1} 	= [:Ygrowth, :Igrowth, :Cgrowth, :N, :wgrowth, :RB,  :π, :TOP10Wshare, :TOP10Ishare, :τprog, :σ]
 
-	# shock_names::Array{Symbol, 1} 			= [:A, :Z, :ZI, :μ, :μw, :Gshock, :Rshock]
-	# observed_vars_input::Array{Symbol, 1} 	= [:Ygrowth, :Igrowth, :Cgrowth, :N, :wgrowth, :RB,  :π]
+	shock_names::Array{Symbol, 1} 			= [:A, :Z, :ZI, :μ, :μw, :Gshock, :Rshock]
+	observed_vars_input::Array{Symbol, 1} 	= [:Ygrowth, :Igrowth, :Cgrowth, :N, :wgrowth, :RB,  :π]
 	nobservables 							= length(observed_vars_input)
 
-	data_rename::Dict{Symbol,Symbol} 		= Dict(:pi=>:π, :sigma2=>:σ, :tauprog=>:τprog, :w90share=>:TOP10Wshare, :I90share=>:TOP10Ishare)
+	#data_rename::Dict{Symbol,Symbol} 		= Dict(:pi=>:π, :sigma2=>:σ, :tauprog=>:τprog, :w90share=>:TOP10Wshare, :I90share=>:TOP10Ishare)
+	data_rename::Dict{Symbol,Symbol} 		= Dict(:pi=>:π)
 
 	me_treatment::Symbol 					= :unbounded
 	me_std_cutoff::Float64 					= 0.2
-	# meas_error_input::Array{Symbol, 1} 		=  []
-	meas_error_input::Array{Symbol, 1} 		=  [:TOP10Wshare, :TOP10Ishare, :τprog, :σ]
-	# meas_error_distr::Array{InverseGamma{Float64}, 1} = []
-	meas_error_distr::Array{InverseGamma{Float64}, 1} = [InverseGamma(ig_pars(0.0005, 0.001^2)...), InverseGamma(ig_pars(0.0005, 0.001^2)...), InverseGamma(ig_pars(0.0005, 0.001^2)...), InverseGamma(ig_pars(0.05, 0.01^2)...)]
+	meas_error_input::Array{Symbol, 1} 		=  []
+	#meas_error_input::Array{Symbol, 1} 		=  [:TOP10Wshare, :TOP10Ishare, :τprog, :σ]
+	meas_error_distr::Array{InverseGamma{Float64}, 1} = []
+	#meas_error_distr::Array{InverseGamma{Float64}, 1} = [InverseGamma(ig_pars(0.0005, 0.001^2)...), InverseGamma(ig_pars(0.0005, 0.001^2)...), InverseGamma(ig_pars(0.0005, 0.001^2)...), InverseGamma(ig_pars(0.05, 0.01^2)...)]
 
 	
 	mode_start_file::String 				= "7_Saves/parameter_example.jld2"

@@ -38,21 +38,30 @@ function prepare_linearization_rank(m_par)
     TSS                 = taxrevSS  + av_tax_rateSS * ((1.0 .- 1.0 ./ m_par.μw).*wSS.*NSS)
     GSS                 = TSS - (m_par.RB./m_par.π-1.0)*BSS
 
-
     # aggregate steady state marker
     # @include "../3_Model/input_aggregate_steady_state_rank.jl
 
     # write to XSS vector
     @writeXSS
     
+    @set! n_par.n_agg_eqn = 51
     # produce indexes to access XSS etc.
     indexes_aggr          = produce_indexes_aggr(n_par)
     indexes               = produce_indexes(n_par)
-    ntotal                = indexes.profits # Convention: profits is the last control in the list of control variables
-    @set! n_par.ntotal    = ntotal   
+
+    @set! n_par.naggrstates = length(state_names)
+    @set! n_par.naggrcontrols = length(control_names)
+    @set! n_par.naggr = length(aggr_names)
+    @set! n_par.nstates = n_par.naggrstates
     @set! n_par.ncontrols = n_par.naggrcontrols
+    @set! n_par.ntotal = n_par.naggr
+
     @set! n_par.LOMstate_save = zeros(n_par.nstates, n_par.nstates)
     @set! n_par.State2Control_save = zeros(n_par.ncontrols, n_par.nstates)
-    
+
+    if n_par.n_agg_eqn != n_par.naggr
+        @warn("Inconsistency in number of aggregate variables and equations")
+    end
+
     return XSS, XSSaggr, indexes, indexes_aggr, n_par, m_par       
     end

@@ -8,13 +8,22 @@ using Parameters, Setfield, MCMCChains, StatsPlots, Optim, CSV, OrderedCollectio
 using Flatten, FieldMetadata; import Flatten: flattenable
 using JSON, Roots
 
+# export LinearResults, linearize_full_model, EstimResults, find_mode, load_mode, montecarlo,
+#         find_steadystate, prepare_linearization, @writeXSS, @make_fn, @make_fnaggr,
+#         @make_struct, @make_struct_aggr, compute_steadystate, SteadyResults,
+#         mylinearinterpolate3, Ksupply, Fsys, SGU, Fsys_agg, SGU_estim, SolveDiffEq,
+#         mode_finding, likeli, kalman_filter, kalman_filter_smoother, measurement_error, rwmh,
+#         ModelParameters, NumericalParameters, EstimationSettings,
+#         Tauchen, EGM_policyupdate, Kdiff, distrSummaries, @generate_equations,
+#         @make_deriv, @make_deriv_estim, prioreval, FSYS_MIT_ALL_SHOCKS
 include("8_Rank/input_aggregate_names_rank.jl")
 #include("8_rank/PreprocessInputs_rank.jl")
 
 # ------------------------------------------------------------------------------
 ## Define Functions
 # ------------------------------------------------------------------------------
-include("1_Model/Parameters.jl")
+#include("1_Model/Parameters.jl")
+include("8_Rank/Parameters_rank.jl")
 include("3_NumericalBasics/Structs.jl")
 include("6_Estimation/prior.jl")
 
@@ -45,9 +54,15 @@ include("2_includeLists/include_Estimation.jl")
 @make_fnaggr produce_indexes_aggr # macro makefn_aggr writes function produce_indexes_aggr which fills instance of IndexStructAggr with correct values of indexes
 @make_fn produce_indexes # macro makefn writes function produce_indexes which fills instance of IndexStruct with correct values of indexes (no difference to indexes_aggr in RANK)
 
-m_par = ModelParameters(δ_s = 1.92, ϕ = 1.267, κ = 0.083, κw = 0.085, ρ_R = 0.818, σ_Rshock = 0.0025, θ_π = 2.1, 
-θ_Y = 0.176, γ_B = 0.4,  γ_π = -1.05, γ_Y = -0.852, ωF = 0.1, ωU = 0.1)
-m_par = @set m_par.RB = 1.0./m_par.β # Rank interest rate on bonds is simply 1/beta
+# # m_par = ModelParameters(δ_s = 1.92, ϕ = 1.267, κ = 0.083, κw = 0.085, ρ_R = 0.818, σ_Rshock = 0.0025, θ_π = 2.1, 
+# # θ_Y = 0.176, γ_B = 0.4,  γ_π = -1.05, γ_Y = -0.852)
+# # m_par = @set m_par.RB = 1.0./m_par.β # Rank interest rate on bonds is simply 1/beta
+# # m_par = ModelParameters()
+# # m_par = @set m_par.RB = 1.0./m_par.β
+m_par = ModelParameters()
+@load "7_Saves/parameter_example.jld2" par_final
+m_par = Flatten.reconstruct(m_par, par_final[1:length(par_final)-length(e_set.meas_error_input)])
+@set! m_par.RB = 1.0./m_par.β # Rank interest rate on bonds is simply 1/beta
 
 @doc raw"""
     compute_steadystate()
@@ -61,9 +76,10 @@ function compute_steadystate(m_par)
   # Prepare steady state information for linearization
   XSS, XSSaggr, indexes, indexes_aggr, n_par, m_par  = prepare_linearization_rank(m_par)
   
-  return SteadyResults(XSS, XSSaggr, indexes, indexes_aggr, 0, 0, n_par, m_par, 0, 0, 0, 0, 0)
+  return SteadyResults(XSS, XSSaggr, indexes, indexes_aggr, zeros(1,1), n_par, m_par, zeros(1,1), zeros(1,1), zeros(1,1), zeros(1,1), zeros(1,1))
 end
-#sr = compute_steadystate(m_par)
+
+# sr = compute_steadystate(m_par)
 @doc raw"""
     linearize_full_model()
 
@@ -83,7 +99,7 @@ function linearize_full_model(sr::SteadyResults, m_par::ModelParameters)
   end
     State2Control, LOMstate, SolutionError, nk, A, B = SGU_rank(sr.XSS,m_par, sr.n_par, sr.indexes, sr.indexes_aggr; estim = false);  
     # @timev State2Control, LOMstate, SolutionError, nk, A, B = SGU_estim(sr.XSSaggr, copy(A), copy(B), sr.m_par, sr.n_par, sr.indexes, sr.indexes_aggr, sr.distrSS; estim = true)
-    return LinearResults(State2Control, LOMstate, A, B, SolutionError)
+    return LinearResults(State2Control, LOMstate, A, B, SolutionError, nk)
 end
 #lr = linearize_full_model(sr, m_par)
 @doc raw"""
@@ -99,10 +115,17 @@ Find parameter that maximizes likelihood of data given linearized model `mr`.
 `struct` `EstimResults`, containing all returns of [`mode_finding()`](@ref)
 """
 function find_mode(sr::SteadyResults, lr::LinearResults, m_par::ModelParameters)
-    par_final, hessian_final, posterior_mode, meas_error, meas_error_std, parnames, Data, Data_missing, H_sel, priors =
-        mode_finding(sr.XSSaggr, lr.A, lr.B, sr.indexes, sr.indexes_aggr, sr.Copula,sr.distrSS, sr.compressionIndexes, m_par, sr.n_par, e_set)
+  if sr.n_par.verbose
+    println("Started mode finding. This might take a while...")
+  end
+  par_final, hessian_final, posterior_mode, meas_error, meas_error_std, parnames, Data, Data_missing, H_sel, priors =
+      mode_finding(sr.XSSaggr, lr.A, lr.B, sr.indexes, sr.indexes_aggr,sr.distrSS, sr.compressionIndexes, m_par, sr.n_par, e_set)
+  if sr.n_par.verbose
+      println("Mode finding finished.")
+  end
     return EstimResults(par_final, hessian_final, meas_error, meas_error_std, parnames, Data, Data_missing, H_sel, priors)
 end
+
 
 function load_mode(sr::SteadyResults;file::String = e_set.mode_start_file)
     @load file par_final hessian_final meas_error meas_error_std parnames Data Data_missing H_sel priors

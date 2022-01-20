@@ -18,6 +18,8 @@ Save estimation results to `e_set.save_mode_file`.
 - `priors`: priors of parameters (including measurement error variances)
 """
 # XSSaggr, A, B, indexes, indexes_aggr, distrSS, compressionIndexes, m_par, n_par, e_set = sr.XSSaggr, lr.A, lr.B, sr.indexes, sr.indexes_aggr, sr.distrSS, sr.compressionIndexes, m_par, sr.n_par, e_set
+
+
 function mode_finding(XSSaggr, A, B, indexes, indexes_aggr, distrSS, compressionIndexes, m_par, n_par, e_set)
 
   # Load data
@@ -56,7 +58,9 @@ function mode_finding(XSSaggr, A, B, indexes, indexes_aggr, distrSS, compression
 
   # Load starting values for parameters and update m_par
   @load e_set.mode_start_file par_final
-  par = copy(par_final[1:end])
+  #par = copy(par_final[1:end])
+  par = copy(par_final[1:end-4+length(meas_error)])
+  
 
   if e_set.me_treatment != :fixed
     m_par = Flatten.reconstruct(m_par, par[1:length(par) - length(meas_error)])

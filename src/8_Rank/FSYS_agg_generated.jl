@@ -68,9 +68,7 @@ depr                    = m_par.δ_0 + δ_1 * (u - 1.0) + δ_2 / 2.0 * (u - 1.0)
 Wagesum                 = N * w                                         # Total wages in economy t
 WagesumPrime            = NPrime * wPrime                               # Total wages in economy t+1
 
-# Eficient ouput and employment
-N_GAP                   = employment(K, Z ./ (m_par.μ*m_par.μw), m_par)
-Y_GAP                   = output(K,Z,N_GAP, m_par)
+YREACTION = Y ./ exp(Xss[indexes.YSS])                                  # Policy reaction function to Y
 
 # tax progressivity variabels used to calculate e.g. total taxes
 #tax_prog_scale          = (m_par.γ + m_par.τ_prog) / ((m_par.γ + τprog))  # scaling of labor disutility including tax progressivity
@@ -82,9 +80,7 @@ incgrossp                = profits                                         # gro
 
 taxrev                  = incgross - inc + incgrossp - incp                           # tax revenues
 incgrossaux             = incgross
-# Summary for aggregate human capital 
-#distr_y                 = sum(distrSS, dims=(1,2))
-#Htact                   = dot(distr_y[1:end-1],(n_par.grid_y[1:end-1]/n_par.Hu).^((m_par.γ + m_par.τ_prog)/(m_par.γ + τprog)))
+
 
 ############################################################################
 #           Error term calculations (i.e. model starts here)          #
@@ -127,16 +123,17 @@ F[indexes.Cgrowth]      = log(Cgrowth)      - log(C/Clag)
 
 #  Taylor rule and interest rates
 F[indexes.RB]           = log(RBPrime) - Xss[indexes.RBSS] -
-                         ((1 - m_par.ρ_R) * m_par.θ_π) .* log(π) -
-                         ((1 - m_par.ρ_R) * m_par.θ_Y) .* log(Y/Y_GAP) -
-                         m_par.ρ_R * (log.(RB) - Xss[indexes.RBSS])  - log(Rshock)
+                            ((1 - m_par.ρ_R) * m_par.θ_π) .* log(π) -
+                            ((1 - m_par.ρ_R) * m_par.θ_Y) .* log(YREACTION) -
+                            m_par.ρ_R * (log.(RB) - Xss[indexes.RBSS])  - log(Rshock)
 
 # Tax rule
 F[indexes.τprog]        = log(τprog) - m_par.ρ_P * log(τproglag)  - 
-                         (1.0 - m_par.ρ_P) *(Xss[indexes.τprogSS]) - 
-                         (1.0 - m_par.ρ_P) * m_par.γ_YP * log(Y/Y_GAP) -
-                         (1.0 - m_par.ρ_P) * m_par.γ_BP * (log(B)- Xss[indexes.BSS]) - 
-                         log(Tprogshock)
+                            (1.0 - m_par.ρ_P) *(Xss[indexes.τprogSS]) - 
+                            (1.0 - m_par.ρ_P) * m_par.γ_YP * log(YREACTION) -
+                            (1.0 - m_par.ρ_P) * m_par.γ_BP * (log(B)- Xss[indexes.BSS]) - 
+                            log(Tprogshock)
+
 
 F[indexes.τlev]         = av_tax_rate - (taxrev ./ incgrossaux) # Union profits are taxed at average tax rate, this equation pins down taxrev because av_tax rate is exogenous
 
@@ -144,12 +141,12 @@ F[indexes.T]            = log(T) - log(taxrev + av_tax_rate * unionprofits)
 
 F[indexes.av_tax_rate]  = log(av_tax_rate) - m_par.ρ_τ * log(av_tax_ratelag)  - 
                             (1.0 - m_par.ρ_τ) * Xss[indexes.av_tax_rateSS] -
-                            (1.0 - m_par.ρ_τ) * m_par.γ_Yτ * log(Y / Y_GAP) -
+                            (1.0 - m_par.ρ_τ) * m_par.γ_Yτ * log(YREACTION) -
                             (1.0 - m_par.ρ_τ) * m_par.γ_Bτ * (log(B) - Xss[indexes.BSS])
 # --------- Controls ------------
 # Deficit rule
 F[indexes.π]            = log(BgrowthPrime) + m_par.γ_B * (log(B)- Xss[indexes.BSS])  -
-                          m_par.γ_Y * log(Y / Y_GAP)  - m_par.γ_π * log(π) - log(Gshock) - m_par.γ_RB * (log(RB)-Xss[indexes.RBSS])
+                          m_par.γ_Y * log(YREACTION)  - m_par.γ_π * log(π) - log(Gshock)
 
 F[indexes.G]            = log(G) - log(BPrime + T - RB / π * B)             # Government Budget Constraint
 
@@ -175,15 +172,9 @@ F[indexes.mcww]         = log.(mcww) - log.(mcw * w)                        # wa
 
 F[indexes.w]            = log.(w) - log.(wage(Kserv, Z * mc, N, m_par))     # wages that firms pay
 
-F[indexes.union_firm_profits]   = log.(union_firm_profits)  - log.(w.*N .* (1.0 - mcw))  # profits of the monopolistic unions
-F[indexes.unionprofits]         = log.(unionprofits)        - log.((1.0 - exp(Xss[indexes.mcwSS])) .* w .* N  + m_par.ωU .* 
-                                                                    (union_firm_profits - (1.0 - exp(Xss[indexes.mcwSS])) .* w .* N + log.(union_Retained))) # distributed profits to households
-F[indexes.union_Retained]       = log.(union_RetainedPrime) - (union_firm_profits .- unionprofits .+ log.(union_Retained) .* (RB ./ π)) # Accumulation equation, Retained is in levels
+F[indexes.unionprofits] = log.(unionprofits)  - log.(w.*N .* (1.0 - mcw))  # profits of the monopolistic unions
 
-F[indexes.firm_profits]         = log.(firm_profits)  - log.(Y .* (1.0 - mc))                                               # profits of the monopolistic resellers
-F[indexes.profits]              = log.(profits)       - log.((1.0 - exp(Xss[indexes.mcSS])).*Y   + m_par.ωF .*
-                                                        (firm_profits - (1.0 - exp(Xss[indexes.mcSS])).*Y + log(Retained))) # distributed profits to households
-F[indexes.Retained]             = log.(RetainedPrime) - (firm_profits .- profits .+ log.(Retained) .* (RB ./ π))            # Accumulation equation (levels)
+F[indexes.profits]      = log.(profits)  - log.(Y .* (1.0 - mc) .+ q .* (KPrime .- (1.0 .- depr) .* K) .- I)  # profits of the monopolistic resellers
 
 F[indexes.q]            = 1.0 - ZI * q * (1.0 - m_par.ϕ / 2.0 * (Igrowth - 1.0)^2.0 - # price of capital investment adjustment costs
                           m_par.ϕ * (Igrowth - 1.0) * Igrowth)  -
@@ -198,26 +189,19 @@ F[indexes.LPXA]         = log.(LPXA)                - (log((qPrime + rPrime - 1.
 F[indexes.I]            = KPrime .-  K .* (1.0 .- depr)  .- ZI .* I .* (1.0 .- m_par.ϕ ./ 2.0 .* (Igrowth -1.0).^2.0)           # Capital accumulation equation
 F[indexes.N]            = log.(N) - log.(((1.0 - τprog) * τlev * (mcw .* w).^(1.0 - τprog)).^(1.0 / (m_par.γ + τprog)))   # labor supply
 F[indexes.Y]            = log.(Y) - log.(Z .* N .^(1.0 .- m_par.α) .* Kserv .^m_par.α)                                          # production function
-F[indexes.C]            = log.(Y .- G .- I .+ (A .- 1.0) .* RB .* B ./ π .- (δ_1 * (u - 1.0) + δ_2 / 2.0 * (u - 1.0)^2.0).*K) .- log(C) # Resource constraint
+F[indexes.C]            = log.(Y .- G .- I .+ (A .- 1.0) .* RB .* B ./ π) .- log(C)                            # Resource constraint
+# TD: Does not contain  - (δ_1 * (u - 1.0) + δ_2 / 2.0 * (u - 1.0)^2.0).*K) anymore
 
 # Error Term on prices/aggregate summary vars (logarithmic, controls), here difference to SS value averages
-#F[indexes.H]            = log.(H)     - Xss[indexes.HSS]                                                        # Capital market clearing
-#F[indexes.K]            = log.(K)     - Xss[indexes.KSS]                                                       # Capital market clearing
-#F[indexes.B]            = log.(B)     - log.( exp(Xss[indexes.BSS]) + log.(Retained) + log.(union_Retained) )   # Bond market clearing
 F[indexes.BY]           = log.(BY)    - log.(B/Y)                                                               # Bond to Output ratio
 F[indexes.TY]           = log.(TY)    - log.(T/Y)                                                               # Tax to output ratio
-F[indexes.totRetainedY] = log.(totRetainedY) - ((log(Retained) + log(union_Retained)) / Y)                      # Retained Earnings to GDP
-#EVh = mutil(CPrime)*(qPrime + rPrime - 1)
-#EVb = mutil(CPrime)*RBPrime./πPrime
-#F[indexes.K] = mutil(C) - m_par.β/q* EVh
-#F[indexes.B] = mutil(C) - m_par.β*EVb
 
-F[indexes.K] = 1.0 ./C.^m_par.ξ - m_par.β/q* 1.0 ./CPrime.^m_par.ξ*(qPrime + rPrime - 1)
-F[indexes.B] = 1.0 ./C.^m_par.ξ - m_par.β*1.0 ./CPrime.^m_par.ξ*RBPrime./πPrime
+# Now Euler equations missing
+
+F[indexes.K]            = 1.0 ./C.^m_par.ξ - m_par.β/q* 1.0 ./CPrime.^m_par.ξ*(qPrime + rPrime - 1)
+F[indexes.B]            = 1.0 ./C.^m_par.ξ - m_par.β*1.0 ./CPrime.^m_par.ξ*RBPrime./πPrime
 
 
-# Add distributional summary stats that do change with other aggregate controls/prices so that the stationary 
-# F[indexes.Ht]           = log.(Ht) - log.(Htact)
 
     # @include "../3_Model/input_aggregate_model.jl"
 
